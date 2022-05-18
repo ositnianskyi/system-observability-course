@@ -1,0 +1,40 @@
+version: "3"
+services:
+  authors:
+    image: estoyanov/bff-authors-service:1.0
+    container_name: bff-authors-service
+    ports:
+      - 8081:8081
+    networks:
+      - mynet
+  books:
+    image: estoyanov/bff-books-service:1.0
+    container_name: bff-books-service
+    ports:
+      - 8082:8082
+    networks:
+      - mynet
+  web-sockets:
+    image: estoyanov/bff-web-sockets-service:1.0
+    container_name: bff-web-sockets-service
+    ports:
+      - 8083:8083
+    networks:
+      - mynet
+  redis:
+    image: redis:latest
+    container_name: bff-redis
+    ports:
+      - 16379:6379
+    networks:
+      - mynet
+
+  bff-frontend:
+    image: estoyanov/bff-frontend:1.0
+    container_name: bff-frontend-service
+    ports:
+       - 8084:8084
+    networks:
+        - mynet
+networks:
+  mynet:
