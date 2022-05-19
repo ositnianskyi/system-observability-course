@@ -1,5 +1,6 @@
 package com.lohika.course.bfffrontend.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,24 +15,14 @@ import java.util.Map;
 @RequestMapping("api/v1/details")
 public class DetailsAgregate {
 
-    @Value("${books.url}")
-    private String booksUrl;
+    @Autowired
+    private WebClient authorClient;
 
-    @Value("${authors.url}")
-    private String authorsUrl;
+    @Autowired
+    private WebClient bookClient;
 
     @GetMapping
     public Mono<Map> getBooksAndAuthors() {
-        WebClient authorClient = WebClient
-                .builder()
-                .baseUrl(authorsUrl)
-                .build();
-
-        WebClient bookClient = WebClient
-                .builder()
-                .baseUrl(booksUrl)
-                .build();
-
         Mono<Object> authors = authorClient.get().retrieve().bodyToMono(Object.class);
         Mono<Object> books = bookClient.get().retrieve().bodyToMono(Object.class);
         return authors.zipWith(books).map(t -> {

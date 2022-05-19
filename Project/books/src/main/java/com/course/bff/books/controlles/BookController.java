@@ -1,5 +1,7 @@
 package com.course.bff.books.controlles;
 
+import brave.Span;
+import brave.Tracer;
 import com.course.bff.books.models.Book;
 import com.course.bff.books.requests.CreateBookCommand;
 import com.course.bff.books.responses.BookResponse;
@@ -16,6 +18,7 @@ import org.asynchttpclient.Response;
 import org.asynchttpclient.util.HttpConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,6 +38,9 @@ import java.util.concurrent.ExecutionException;
 @RestController
 @RequestMapping("api/v1/books")
 public class BookController {
+
+    @Autowired
+    private Tracer tracer;
 
     private final static Logger logger = LoggerFactory.getLogger(BookController.class);
     private final BookService bookService;
@@ -82,11 +88,14 @@ public class BookController {
     }
 
     private void sendPushNotification(BookResponse bookResponse) {
+        Span redisSpan = tracer.nextSpan().name("redisPushNotification");
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        try {
+        try (Tracer.SpanInScope scope = tracer.withSpanInScope(redisSpan.start())) {
             redisTemplate.convertAndSend(redisTopic, gson.toJson(bookResponse));
         } catch (Exception e) {
             logger.error("Push Notification Error", e);
+        } finally {
+            redisSpan.finish();
         }
     }
 
