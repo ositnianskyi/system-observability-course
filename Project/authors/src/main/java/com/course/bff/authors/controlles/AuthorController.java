@@ -6,6 +6,9 @@ import com.course.bff.authors.responses.AuthorResponse;
 import com.course.bff.authors.services.AuthorService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.LongTaskTimer;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.Dsl;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -42,20 +46,40 @@ public class AuthorController {
     private final static Logger logger = LoggerFactory.getLogger(AuthorController.class);
     private final AuthorService authorService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private MeterRegistry meterRegistry;
 
-    public AuthorController(AuthorService authorService, RedisTemplate<String, Object> redisTemplate) {
+    private Counter request_count;
+    private Counter error_count;
+    private LongTaskTimer execution_duration;
+
+    public AuthorController(AuthorService authorService, RedisTemplate<String, Object> redisTemplate, MeterRegistry meterRegistry) {
         this.authorService = authorService;
         this.redisTemplate = redisTemplate;
+        this.meterRegistry = meterRegistry;
+    }
+
+    @PostConstruct
+    public void init() {
+        this.request_count = meterRegistry.counter("request_count", "ControllerName", AuthorController.class.getSimpleName());
+        this.error_count = meterRegistry.counter("error_count", "ControllerName", AuthorController.class.getSimpleName());
+        this.execution_duration = LongTaskTimer
+                .builder("execution_duration")
+                .tags("ControllerName", AuthorController.class.getSimpleName())
+                .register(meterRegistry);
+
     }
 
     @GetMapping()
     public Collection<AuthorResponse> getAuthors() {
         logger.info("Get authors");
+        request_count.increment();
+        final LongTaskTimer.Sample task = execution_duration.start();
         List<AuthorResponse> authorResponses = new ArrayList<>();
         this.authorService.getAuthors().forEach(author -> {
             AuthorResponse authorResponse = createAuthorResponse(author);
             authorResponses.add(authorResponse);
         });
+        task.stop();
 
         return authorResponses;
     }
@@ -63,10 +87,15 @@ public class AuthorController {
     @GetMapping("/{id}")
     public AuthorResponse getById(@PathVariable UUID id) {
         logger.info(String.format("Find authors by %s", id));
+        request_count.increment();
+        final LongTaskTimer.Sample task = execution_duration.start();
         Optional<Author> authorSearch = this.authorService.findById(id);
         if (authorSearch.isEmpty()) {
+            task.stop();
+            error_count.increment();
             throw new RuntimeException("Author isn't found");
         }
+        task.stop();
 
         return createAuthorResponse(authorSearch.get());
     }
@@ -74,9 +103,12 @@ public class AuthorController {
     @PostMapping()
     public AuthorResponse createAuthors(@RequestBody CreateAuthorCommand createAuthorCommand) {
         logger.info("Create authors");
+        request_count.increment();
+        final LongTaskTimer.Sample task = execution_duration.start();
         Author author = this.authorService.create(createAuthorCommand);
         AuthorResponse authorResponse = createAuthorResponse(author);
         this.sendPushNotification(authorResponse);
+        task.stop();
         return authorResponse;
     }
 
@@ -86,6 +118,7 @@ public class AuthorController {
         try {
             redisTemplate.convertAndSend(redisTopic, gson.toJson(authorResponse));
         } catch (Exception e) {
+            error_count.increment();
             logger.error("Push Notification Error", e);
         }
     }

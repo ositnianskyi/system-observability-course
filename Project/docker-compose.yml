@@ -112,6 +112,57 @@ services:
       authors: { condition: service_started }
       books: { condition: service_started }
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: monitoring_grafana
+    ports:
+      - 3000:3000
+    volumes:
+      - ./grafana:/var/lib/grafana
+    links:
+      - prometheus:prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - mynet
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus:/prometheus
+    networks:
+      - mynet
+    links:
+      - cadvisor:cadvisor
+      - node-exporter:node-exporter
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    restart: unless-stopped
+    networks:
+      - mynet
+    expose:
+      - 9100
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    container_name: cadvisor
+    restart: unless-stopped
+    networks:
+      - mynet
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    expose:
+      - 8080
+
 volumes:
   #Es data
   esdata:
