@@ -3,6 +3,7 @@ package com.course.bff.websockets;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -13,6 +14,7 @@ import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 public class WebSocketsApplication {
@@ -60,5 +62,10 @@ public class WebSocketsApplication {
         container.setConnectionFactory(jedisConnectionFactory());
         container.addMessageListener(new MessageListenerAdapter(messageListener), topic);
         return container;
+    }
+
+    @Bean
+    public RestTemplate restTemplate(RestTemplateBuilder restTemplateBuilder) {
+        return restTemplateBuilder.build();
     }
 }

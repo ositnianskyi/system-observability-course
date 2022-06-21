@@ -3,27 +3,22 @@ package com.course.bff.books.services;
 import com.course.bff.books.models.Book;
 import com.course.bff.books.requests.CreateBookCommand;
 import com.course.bff.books.responses.AuthorResponse;
-import com.google.gson.Gson;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.Dsl;
-import org.asynchttpclient.ListenableFuture;
-import org.asynchttpclient.Request;
-import org.asynchttpclient.RequestBuilder;
-import org.asynchttpclient.Response;
-import org.asynchttpclient.util.HttpConstants;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 @Component
 public class BookService {
+
+    @Autowired
+    RestTemplate restTemplate;
+
     @Value("${authorService}")
     private String authorService;
 
@@ -57,25 +52,10 @@ public class BookService {
     }
 
     private Optional<AuthorResponse> getAutor(UUID authorId) {
-        DefaultAsyncHttpClientConfig.Builder clientBuilder = Dsl.config().setConnectTimeout(500);
-        AsyncHttpClient client = Dsl.asyncHttpClient(clientBuilder);
-        Request socketRequest = new RequestBuilder(HttpConstants.Methods.GET)
-                .setUrl(authorService + "/api/v1/authors/" + authorId.toString())
-                .build();
-
-        ListenableFuture<Response> socketFuture = client.executeRequest(socketRequest);
         try {
-            Response response = socketFuture.get();
-            if (response.getStatusCode() != HttpStatus.OK.value()) {
-                return Optional.empty();
-            }
-
-            AuthorResponse authorResponse = new Gson()
-                    .fromJson(response.getResponseBody(), AuthorResponse.class);
-
+            AuthorResponse authorResponse = restTemplate.getForObject(authorService + "/api/v1/authors/" + authorId.toString(), AuthorResponse.class);
             return Optional.of(authorResponse);
-
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (Exception e) {
             return Optional.empty();
         }
     }

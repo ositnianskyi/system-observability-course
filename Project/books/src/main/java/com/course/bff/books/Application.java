@@ -3,6 +3,7 @@ package com.course.bff.books;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
@@ -10,6 +11,9 @@ import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.Duration;
 
 @SpringBootApplication
 public class Application {
@@ -47,5 +51,10 @@ public class Application {
     @Bean
     public ChannelTopic topic() {
         return new ChannelTopic(redisTopic);
+    }
+
+    @Bean
+    public RestTemplate restTemplate(RestTemplateBuilder restTemplateBuilder) {
+        return restTemplateBuilder.setConnectTimeout(Duration.ofMillis(500)).build();
     }
 }
